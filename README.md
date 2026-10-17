@@ -148,7 +148,41 @@ python -c "import zipfile,json;print(json.loads(zipfile.ZipFile('keypaginator.xp
 | `data_collection_permissions` must be object | 错误 | 必须是**对象** `{"required": ["none"]}`，不能写成数组 |
 | Manifest key not supported by the specified minimum Firefox version（桌面） | 警告 | `strict_min_version` ≥ **140.0** |
 | 同上（Firefox for Android） | 警告 | Android 需 ≥ **142.0**，统一写 `142.0` 即可两条都过 |
-| Unsafe assignment to innerHTML | 警告 | 用 `createElement` + `.value` / `.textContent`，不拼 HTML 字符串 |
+| **Unsafe assignment to innerHTML** | 警告 | 用 `createElement` + `.textContent` / `appendChild`，不拼 HTML 字符串 |
+
+### 构建期自动拦截高危写法
+
+`build.py` 会扫描源码，发现以下写法直接 `exit 1`（避免上传到 AMO 才被拦）：
+
+- `.innerHTML =` / `.outerHTML =`
+- `insertAdjacentHTML(...)`
+- `document.write(...)`
+- `eval(...)` / `new Function(...)`
+- `setTimeout("...")` / `setInterval("...")` 传字符串
+
+打包成功时报告会显示 `linter 高危模式 0 处`。
+
+### 关于扩展 ID
+
+本仓库里的 `manifest.json` 用的是通用占位符 `keypaginator@example.com`。
+
+**如果你在 AMO 上已有自己的 add-on 条目**，manifest 里的 ID 必须与建条目时用的**完全一致**，
+否则 AMO 会直接拒收：
+
+> 您的 manifest.json ({...}) 中的附加组件 ID 与您的附加组件在 AMO (xxx) 上的 ID 不匹配。
+
+换 ID 只能**新建条目**，不能在旧条目里传。为避免误传，可以设环境变量启用校验：
+
+```bash
+# Windows CMD
+set KEYPAGINATOR_AMO_ID=你的条目ID && python build.py
+# PowerShell
+$env:KEYPAGINATOR_AMO_ID='你的条目ID'; python build.py
+# Bash
+KEYPAGINATOR_AMO_ID=你的条目ID python build.py
+```
+
+不设该变量则跳过此项检查（发布给他人使用时保持这样即可）。
 
 ---
 
