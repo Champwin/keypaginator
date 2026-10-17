@@ -230,3 +230,17 @@ if os.path.exists(restore):
 build(os.path.join(HERE, 'keypaginator.xpi'), allow_overwrite=True)
 build(os.path.join(ROOT, 'keypaginator.xpi'), allow_overwrite=True)
 build(os.path.join(HERE, 'dist', 'keypaginator-%s.xpi' % VERSION))
+
+# ----------------- 打包后跑官方 addons-linter -----------------
+# 与 AMO 服务端同源，本地过了再上传，避免"上传才被驳回"。
+# 未安装 addons-linter 时自动跳过，不阻断打包。
+lint_script = os.path.join(HERE, 'lint_amo.py')
+if os.path.exists(lint_script):
+    print('\n--- addons-linter 校验（AMO 同源）---')
+    try:
+        r = subprocess.run([sys.executable, lint_script],
+                           cwd=HERE, check=False)
+        if r.returncode != 0:
+            print('  [警告] addons-linter 报出问题，请检查上面的明细后再上传 AMO')
+    except Exception as e:
+        print('  [提醒] linter 校验跳过：%s（不影响已生成的包）' % e)
