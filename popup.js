@@ -68,7 +68,25 @@
     } catch (e) { probe = null; }
 
     if (!probe) {
-      tip('本页尚未注入脚本（刷新页面后即可生效）。');
+      // 分别探测翻页与配色两个模块——只用 KP_PROBE 判定会把
+      //「翻页正常但配色没生效」误报成「本页尚未注入脚本」。
+      let contrast = null;
+      try {
+        contrast = await new Promise(res => {
+          api.tabs.sendMessage(tabId, { type: 'KP_CONTRAST_MEASURE' }, r => res(r || null));
+        });
+      } catch (e) { contrast = null; }
+
+      if (contrast) {
+        tip(contrast.target === false
+          ? '翻页正常；配色未作用于本页（该站不在作用范围或非阅读页）。'
+          : '翻页正常；配色已注入但未启用（请检查「阅读配色」总开关）。');
+      } else {
+        // 常见成因：about:debugging 点了「重新载入」但没刷新网页。
+        // Firefox 不会把新 code 注入已打开的标签页——必须 F5 刷新。
+        tip('本页没有扩展脚本。\n若刚在 about:debugging 点了「重新载入」，'
+          + '必须再刷新本网页（F5）才会生效。');
+      }
       $('dNext').textContent = '—';
       $('dPrev').textContent = '—';
       return;

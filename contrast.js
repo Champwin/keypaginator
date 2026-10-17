@@ -205,16 +205,37 @@
   /** 生成一套配色规则；用 html:root:root 提高特异性压过行内 style */
   function buildCss(bg, fg) {
     const isLight = (hexLum(bg) || 1) >= 0.18;
-    return {
-      isLight,
-      css:
-        `html:root:root{background-color:${bg} !important;` +
-        `color-scheme:${isLight ? 'light' : 'dark'} !important;` +
-        `--custom-bg:${bg} !important;--custom-text:${fg} !important;}` +
-        `html:root:root body{background-color:${bg} !important;color:${fg} !important;}` +
-        `html:root:root ${CONTENT_SEL}{color:${fg} !important;background-color:transparent !important;}` +
-        `html:root:root h1,html:root:root h2,html:root:root h3{color:${fg} !important;}`
-    };
+    const P = 'html:root:root ';                 // 高特异性前缀
+    // 站点常把文字色写在更深的嵌套选择器上（如 .reader-content p，
+    // 而 .reader-content 不在 CONTENT_SEL 里），所以要覆盖多层后代。
+    //
+    // ★ 关键：逗号连接的选择器必须**逐个**加前缀。
+    //   写成 `P + A + ' ' + B` 时，逗号之后每段都会丢掉 P，
+    //   特异性归零就压不过站点样式（症状：背景变了、文字没变）。
+    const containers = CONTENT_SEL.split(',').map(s => s.trim()).filter(Boolean);
+    const TEXT_TAGS = ['p', 'li', 'dd', 'dt', 'blockquote', 'pre',
+      'em', 'strong', 'b', 'i', 'small', 'u', 'label', 'td', 'th', 'figcaption'];
+    const HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+
+    const rules = [];
+    rules.push(P + '{' +
+      'background-color:' + bg + ' !important;' +
+      'color-scheme:' + (isLight ? 'light' : 'dark') + ' !important;' +
+      '--custom-bg:' + bg + ' !important;--custom-text:' + fg + ' !important;}');
+    rules.push(P + 'body{background-color:' + bg + ' !important;color:' + fg + ' !important;}');
+    // 正文容器本身
+    containers.forEach(c => {
+      rules.push(P + c + '{color:' + fg + ' !important;background-color:transparent !important;}');
+    });
+    // 正文容器内的文字元素（嵌套几层都覆盖）
+    containers.forEach(c => TEXT_TAGS.forEach(t => {
+      rules.push(P + c + ' ' + t + '{color:' + fg + ' !important;}');
+    }));
+    // 兜底：body 下所有常见文字元素，避免站点自定义中间层导致漏网
+    TEXT_TAGS.forEach(t => rules.push(P + 'body ' + t + '{color:' + fg + ' !important;}'));
+    HEADINGS.forEach(h => rules.push(P + h + '{color:' + fg + ' !important;}'));
+
+    return { isLight, css: rules.join('') };
   }
 
   /** L1：立即铺上目标配色，堵住黑屏窗口期 */
@@ -316,28 +337,57 @@
   }
 
   /* -------------------------------- 启动 -------------------------------- */
+  /** 诊断标记：把启动状态写到 DOM 属性上，便于在浏览器控制台/自动化里定位卡点。
+   *  正常使用时无副作用（只是个自定义属性）。 */
+  function mark(stage, extra) {
+    try {
+      let el = document.getElementById('__kp_cg_diag__');
+      if (!el) {
+        el = document.createElement('meta');
+        el.id = '__kp_cg_diag__';
+        (document.head || document.documentElement).appendChild(el);
+      }
+      el.setAttribute('data-stage', stage);
+      el.setAttribute('data-info', JSON.stringify(Object.assign({
+        host: location.hostname,
+        readyState: document.readyState,
+        enabled: !!cfg.cgEnabled,
+        allHosts: !!cfg.cgAllHosts,
+        hosts: Array.isArray(cfg.cgHosts) ? cfg.cgHosts : [],
+        preset: cfg.cgPreset
+      }, extra || {})));
+    } catch (e) { /* noop */ }
+  }
+
   /** DOM 就绪后的真正启动动作 */
   function startIfTarget() {
     const dec = targetDecision();
-    if (dec !== true) { lastDecision = { mode: 'skip', reason: dec === null ? 'dom-not-ready' : 'not-target' }; return false; }
+    mark('target-decided', { decision: String(dec), started: dec === true });
+    if (dec !== true) {
+      lastDecision = { mode: 'skip', reason: dec === null ? 'dom-not-ready' : 'not-target' };
+      return false;
+    }
     if (cfg.cgResetDirty) resetDirtyPalette();
 
     applyL1();                                   // L1 兜底
     const m = measure();
     if (m) applyL2(m);                           // L2 定稿
     watch();
+    mark('started', { measured: !!m, cr: m ? +m.cr.toFixed(2) : null });
     dbg('已启用 @', location.hostname, '预设=', cfg.cgPreset);
     return true;
   }
 
   function boot() {
-    if (!cfg.cgEnabled) return;
+    mark('boot', { domReady: domReady() });
+    if (!cfg.cgEnabled) { mark('boot-disabled'); return; }
 
     // 依赖 DOM 的启发式判定在 document_start 阶段不可用，
     // 必须等 DOM 就绪后再判，否则会漏应用（表现为「刷新后全黑」）。
     if (!domReady()) {
       lastDecision = { mode: 'pending' };
-      document.addEventListener('DOMContentLoaded', () => { startIfTarget(); },
+      mark('boot-waiting-dom');
+      document.addEventListener('DOMContentLoaded', () => { mark('domcontentloaded'); startIfTarget(); },
         { once: true });
       // 某些站点 DOMContentLoaded 早于脚本注册，这里再兜一层
       if (document.readyState !== 'loading') startIfTarget();
@@ -411,6 +461,7 @@
 
   sGet(DEFAULTS).then((v) => {
     cfg = Object.assign({}, DEFAULTS, v || {});
+    mark('config-loaded', { keys: Object.keys(v || {}).length });
     boot();
     try {
       api.storage.onChanged.addListener((changes, area) => {
