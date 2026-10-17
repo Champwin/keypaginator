@@ -1,34 +1,59 @@
 /* =========================================================================
- * guard.css — 阅读配色的 L1 声明式兜底
+ * guard.css — 阅读配色的 L1 声明式兜底（无条件的"绝不黑屏"底线）
  * -------------------------------------------------------------------------
  * 由浏览器在 document_start 注入，早于页面任何 JS 执行。
+ *
+ * ★ 为什么必须无条件生效（历史教训，务必保留）
+ *   本文件曾写成 `html.has-custom-text {...}` 这类带条件的规则，
+ *   但 `has-custom-text` 是站点 Alpine 绑定到 html 上的 class，
+ *   扩展自己从不添加 → 整份 guard.css 成了死代码，
+ *   于是「设了深色背景但没设文字色」的黑底黑字现象重新出现。
+ *   L1 是**底线保障**：先无条件把页面拉回可读，再由 contrast.js 按用户偏好接管。
  *
  * 为什么需要 CSS 而非纯 JS：
  *   站点用 Alpine 的 :style 绑定把 CSS 变量写到 html 的行内 style 上，
  *   存在「变量已改、class 尚未更新」的短暂窗口，纯 JS 赶不上那个瞬间。
- *   声明式 CSS 由浏览器在最早期注入，能把黑底黑字的窗口期压到最小。
- *
- * 这里只做「拉回可读」这一件事，不做配色偏好：
- *   - 仅当站点同时自定义了背景色和文字色（has-custom-text）时才动手，
- *     该组合已实测必然导致 100% 黑屏（对比度 1.0）
- *   - 真正的配色偏好由 contrast.js 按用户选的预设接管
  *
  * 优先级：!important 用于压过 html 上的行内 style
  *   （行内 style 属作者级且无 !important，会被样式表的 !important 覆盖）。
  * ========================================================================= */
 
-html.has-custom-text {
+html {
+  color-scheme: light !important;
   --custom-bg: #ffffff !important;
   --custom-text: #1a1a1a !important;
+  background-color: #ffffff !important;
 }
 
-html.has-custom-text body {
+body {
   background-color: #ffffff !important;
   color: #1a1a1a !important;
 }
 
-html.has-custom-text #article-content,
-html.has-custom-text .reader-text,
-html.has-custom-text .reader-card {
+/* 正文容器及其常见后代：同样无条件拉回可读。
+   注意逗号连接的每一段都不需要额外前缀（这里目标是"压过站点"，
+   站点的选择器来自它自己的样式表，本表由浏览器在 document_start 注入，
+   后注入的同优先级规则会覆盖先注入的，因此 !important 才是关键）。 */
+#article-content,
+.reader-text,
+.reader-card,
+.chapter-content,
+#content,
+.txtnav {
+  color: #1a1a1a !important;
+}
+
+#article-content p,
+.reader-text p,
+.reader-card p,
+.chapter-content p,
+#content p,
+.txtnav p,
+#article-content li,
+.reader-text li,
+.reader-card li,
+.chapter-content li,
+#content li,
+.txtnav li {
   color: #1a1a1a !important;
 }
