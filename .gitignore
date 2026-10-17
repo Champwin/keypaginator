@@ -1,0 +1,17 @@
+# 打包产物与依赖，不入库
+dist/
+node_modules/
+__pycache__/
+*.xpi
+*.bak-*
+*.zip
+
+# 本地文件
+*.log
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.idea/
+.vscode/
+*.swp

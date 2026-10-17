@@ -1,0 +1,34 @@
+/* =========================================================================
+ * guard.css — 阅读配色的 L1 声明式兜底
+ * -------------------------------------------------------------------------
+ * 由浏览器在 document_start 注入，早于页面任何 JS 执行。
+ *
+ * 为什么需要 CSS 而非纯 JS：
+ *   站点用 Alpine 的 :style 绑定把 CSS 变量写到 html 的行内 style 上，
+ *   存在「变量已改、class 尚未更新」的短暂窗口，纯 JS 赶不上那个瞬间。
+ *   声明式 CSS 由浏览器在最早期注入，能把黑底黑字的窗口期压到最小。
+ *
+ * 这里只做「拉回可读」这一件事，不做配色偏好：
+ *   - 仅当站点同时自定义了背景色和文字色（has-custom-text）时才动手，
+ *     该组合已实测必然导致 100% 黑屏（对比度 1.0）
+ *   - 真正的配色偏好由 contrast.js 按用户选的预设接管
+ *
+ * 优先级：!important 用于压过 html 上的行内 style
+ *   （行内 style 属作者级且无 !important，会被样式表的 !important 覆盖）。
+ * ========================================================================= */
+
+html.has-custom-text {
+  --custom-bg: #ffffff !important;
+  --custom-text: #1a1a1a !important;
+}
+
+html.has-custom-text body {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+html.has-custom-text #article-content,
+html.has-custom-text .reader-text,
+html.has-custom-text .reader-card {
+  color: #1a1a1a !important;
+}

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>键盘翻页助手 · 设置</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --fg: #1f2328;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --brand: #2563eb;
+    --brand-soft: #eff6ff;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 60px; background: var(--bg); color: var(--fg);
+    font: 14px/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  header { margin-bottom: 18px; }
+  header h1 { font-size: 20px; margin: 0 0 6px; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  section {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 14px;
+  }
+  section h2 { font-size: 15px; margin: 0 0 4px; }
+  section .desc { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+  .field { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .field > label { width: 128px; flex: 0 0 auto; color: #374151; }
+  input[type=text], select {
+    flex: 1 1 220px; min-width: 160px; padding: 6px 10px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 13px; background: #fff; color: var(--fg);
+  }
+  input[type=text]:focus, select:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: var(--brand); }
+  button {
+    padding: 6px 12px; border: 1px solid var(--line); background: #fff; border-radius: 8px;
+    cursor: pointer; font-size: 13px; color: var(--fg);
+  }
+  button:hover { border-color: var(--brand); color: var(--brand); }
+  button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  button.primary:hover { background: #1d4ed8; color: #fff; }
+  button.danger { color: var(--danger); border-color: #fecaca; }
+  button.danger:hover { background: #fef2f2; border-color: var(--danger); color: var(--danger); }
+  .switch { position: relative; width: 40px; height: 22px; flex: 0 0 auto; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .slider { position: absolute; inset: 0; background: #d1d5db; border-radius: 22px; transition: background .18s; pointer-events: none; }
+  .slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 2px; top: 2px; background: #fff; border-radius: 50%; transition: transform .18s; }
+  .switch input:checked + .slider { background: var(--brand); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  td input { width: 100%; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--brand-soft); color: #1d4ed8; padding: 2px 8px; border-radius: 6px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .capture { border-color: var(--brand); color: var(--brand); }
+  .capture.active { background: var(--brand); color: #fff; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 10px 16px; display: flex; justify-content: center; gap: 10px; }
+  .saved { color: #16a34a; font-size: 13px; align-self: center; opacity: 0; transition: opacity .2s; }
+  .saved.show { opacity: 1; }
+  textarea { width: 100%; height: 90px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+  input[type=color] { width: 46px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; flex: 0 0 auto; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 3px; }
+  input[type=color]::-webkit-color-swatch { border: none; border-radius: 5px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; }
+  .sw {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 7px 8px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; cursor: pointer; font-size: 12px; color: var(--muted);
+    min-width: 62px;
+  }
+  .sw i { display: block; width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(0,0,0,.12); }
+  .sw:hover { border-color: var(--brand); }
+  .sw.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); font-weight: 600; box-shadow: 0 0 0 1px var(--brand) inset; }
+  .field.off { opacity: .45; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>键盘翻页助手 · 设置</h1>
+    <p>按键触发时自动点击页面上的「下一页 / 下一章 / Next」等翻页链接。改动即时生效，无需重启浏览器。</p>
+  </header>
+
+  <section>
+    <h2>1. 总开关</h2>
+    <p class="desc">关闭后所有站点都不响应按键。</p>
+    <div class="field">
+      <label>启用插件</label>
+      <label class="switch"><input type="checkbox" id="enabled"><span class="slider"></span></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 触发按键</h2>
+    <p class="desc">多个按键用英文逗号分隔。支持修饰键组合，写法：<code>Alt+KeyN</code>、<code>Ctrl+ArrowRight</code>、<code>Shift+Space</code>。单键可直接写 <code>ArrowRight</code>、<code>j</code>、<code>Period</code>。</p>
+
+    <div class="field">
+      <label>下一页</label>
+      <input type="text" id="nextKeys" placeholder="ArrowRight, Alt+KeyN">
+      <button class="capture" data-target="nextKeys">捕获按键</button>
+    </div>
+    <div class="field">
+      <label>上一页</label>
+      <input type="text" id="prevKeys" placeholder="ArrowLeft, Alt+KeyP">
+      <button class="capture" data-target="prevKeys">捕获按键</button>
+    </div>
+
+    <div class="field">
+      <label>预设方案</label>
+      <select id="preset">
+        <option value="">— 选择一个预设套用 —</option>
+        <option value="arrow">方向键：→ 下一页 / ← 上一页</option>
+        <option value="arrow2">方向键：↓ 下一页 / ↑ 上一页</option>
+        <option value="alt">Alt + N / Alt + P</option>
+        <option value="vim">Vim 风格：l / h</option>
+        <option value="jk">J / K（j 下一页，k 上一页）</option>
+        <option value="dot">句点逗号：. / ,</option>
+        <option value="page">PageDown / PageUp</option>
+        <option value="space">Space 下一页 / Shift+Space 上一页</option>
+        <option value="bracket">方括号：] / [</option>
+      </select>
+      <button id="applyPreset">套用</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <p class="hint">注意：在输入框、文本域、可编辑区域内打字时不会触发，可放心使用单字母键。</p>
+  </section>
+
+  <section>
+    <h2>3. 行为</h2>
+    <div class="field">
+      <label>点击前高亮(ms)</label>
+      <input type="text" id="highlightMs" style="flex:0 0 120px" placeholder="150">
+      <span class="hint" style="margin:0">0 = 不做提示直接点击</span>
+    </div>
+    <div class="field">
+      <label>显示角标提示</label>
+      <label class="switch"><input type="checkbox" id="showToast"><span class="slider"></span></label>
+    </div>
+    <div class="field">
+      <label>翻页后回到顶部</label>
+      <label class="switch"><input type="checkbox" id="scrollTop"><span class="slider"></span></label>
+    </div>
+    <div class="field">
+      <label>长按连发</label>
+      <label class="switch"><input type="checkbox" id="allowRepeat"><span class="slider"></span></label>
+      <span class="hint" style="margin:0">开启后按住按键会连续翻页，容易翻过头</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. 阅读配色</h2>
+    <p class="desc">为长时间看小说设定舒服的底色与字色。部分站点把配色写进 CSS 变量，一旦设成「深底 + 没设字色」，正文会回落纯黑导致整页漆黑；本模块既提供配色预设，也内置对比度守护兜底。</p>
+
+    <div class="field">
+      <label class="switch"><input type="checkbox" id="cgEnabled"><span class="slider"></span></label>
+      <span>启用阅读配色</span>
+    </div>
+
+    <div class="field" style="align-items:flex-start">
+      <label style="width:88px;padding-top:6px">作用范围</label>
+      <div>
+        <label class="switch"><input type="checkbox" id="cgAllHosts"><span class="slider"></span></label>
+        <span class="hint" style="margin:0">对所有站点生效（含普通网页，配色会覆盖全站底色）</span>
+      </div>
+    </div>
+
+    <div class="field" style="align-items:flex-start">
+      <label style="width:88px;padding-top:6px">作用站点</label>
+      <div style="flex:1">
+        <div id="cgHostRows"></div>
+        <button id="cgHostAdd" type="button">添加当前站点</button>
+        <div class="hint" style="margin:6px 0 0">主机名写 <code>example.com</code> 即匹配其全部子域名；每行一个。关闭「对所有站点生效」时，只对这里列出的站点应用配色。</div>
+      </div>
+    </div>
+
+    <div class="field" style="align-items:flex-start">
+      <label style="width:88px;padding-top:6px">配色预设</label>
+      <div class="swatches" id="cgPresets">
+        <button type="button" class="sw" data-preset="green"  title="护眼绿"><i style="background:#c7dcc0"></i><span>护眼绿</span></button>
+        <button type="button" class="sw" data-preset="paper"  title="米黄纸"><i style="background:#f5ecd9"></i><span>米黄纸</span></button>
+        <button type="button" class="sw" data-preset="gray"   title="灰青"><i style="background:#e4e7ea"></i><span>灰青</span></button>
+        <button type="button" class="sw" data-preset="night"  title="夜间"><i style="background:#151515"></i><span>夜间</span></button>
+        <button type="button" class="sw" data-preset="white"  title="纯白"><i style="background:#ffffff"></i><span>纯白</span></button>
+        <button type="button" class="sw" data-preset="custom" title="自定义"><i style="background:linear-gradient(135deg,#f9a8d4,#a5b4fc)"></i><span>自定义</span></button>
+      </div>
+    </div>
+
+    <div class="field" id="cgCustomRow">
+      <label for="cgCustomBg">自定义</label>
+      <input type="color" id="cgCustomBg">
+      <span class="hint" style="margin:0">背景</span>
+      <input type="color" id="cgCustomFg">
+      <span class="hint" style="margin:0">文字</span>
+      <button id="cgCustomReset" type="button">还原</button>
+    </div>
+
+    <div class="field">
+      <label for="cgThreshold">对比度阈值</label>
+      <input type="text" id="cgThreshold" style="flex:0 0 90px" placeholder="4.5">
+      <span class="hint" style="margin:0">WCAG AA 正文标准 4.5；守护发现配色低于此值会自动纠正</span>
+    </div>
+
+    <div class="field">
+      <label class="switch"><input type="checkbox" id="cgProtect"><span class="slider"></span></label>
+      <span>对比度守护（配色不可读时自动纠正，杜绝黑底黑字）</span>
+    </div>
+
+    <div class="field">
+      <label class="switch"><input type="checkbox" id="cgResetDirty"><span class="slider"></span></label>
+      <span>顺带清除站点的脏配色（治本，但会重置你在站点里调过的背景色）</span>
+    </div>
+
+    <div class="field">
+      <button id="cgProbe" type="button">检测当前页面对比度</button>
+      <span class="hint" style="margin:0" id="cgProbeOut">—</span>
+    </div>
+    <p class="hint">本扩展不预置任何站点名单。若某站出现「底色设深后文字变黑」的不可读情况，把该站加入上方「作用站点」即可启用配色与对比度守护。</p>
+  </section>
+
+  <section>
+    <h2>5. 站点自定义选择器</h2>
+    <p class="desc">自动识别不准的站点，在这里手写 CSS 选择器（优先级最高）。主机名写 <code>example.com</code> 即可匹配所有子域名。</p>
+    <table>
+      <thead><tr><th style="width:26%">主机名</th><th style="width:34%">下一页选择器</th><th style="width:34%">上一页选择器</th><th style="width:6%"></th></tr></thead>
+      <tbody id="rules"></tbody>
+    </table>
+    <button id="addRule" style="margin:8px 0 0">+ 添加一条</button>
+    <p class="hint">示例：<code>#next_chapter</code>、<code>a.next:not(.disabled)</code>、<code>.pager a:last-child</code></p>
+  </section>
+
+  <section>
+    <h2>6. 禁用站点</h2>
+    <p class="desc">这些站点上完全不响应（例如在线文档、视频站，它们自己也用方向键）。一行一个，或用逗号分隔。</p>
+    <textarea id="disabledHosts" placeholder="mail.google.com&#10;docs.qq.com"></textarea>
+  </section>
+
+  <section>
+    <h2>7. 备份 / 恢复</h2>
+    <p class="desc">导出为 JSON 保存，换电脑时导入即可。</p>
+    <div class="field">
+      <button id="export">导出 JSON</button>
+      <button id="importBtn">从文本框导入</button>
+      <button class="danger" id="reset">恢复默认</button>
+    </div>
+    <textarea id="ioArea" placeholder="导出的配置会显示在这里；导入时把 JSON 粘贴进来"></textarea>
+  </section>
+</div>
+
+<div class="bar">
+  <span class="saved" id="saved">已保存</span>
+  <button class="primary" id="save">保存设置</button>
+</div>
+
+<script src="options.js"></script>
+</body>
+</html>
