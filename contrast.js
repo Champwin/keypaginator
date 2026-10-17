@@ -143,7 +143,7 @@
   const isTargetHost = () => {
     // 显式对所有站点生效
     if (cfg.cgAllHosts) return true;
-    // 用户在设置页添加了名单：只对名单内站点生效（名单为空时按下方默认规则兜底）
+    // 用户在设置页添加了名单：只对名单内站点生效
     const list = Array.isArray(cfg.cgHosts) ? cfg.cgHosts.filter(Boolean) : [];
     if (list.length) return list.some(p => hostMatch(p, location.hostname));
     // 未配置任何名单：采用「仅在疑似阅读页生效」的启发式——
@@ -151,8 +151,14 @@
     return looksLikeReaderPage();
   };
 
-  /** 启发式判断当前页是否是长文/小说阅读页 */
+  /** 本脚本在 document_start 运行，此刻 DOM 尚未解析，
+   *  依赖 DOM 的启发式判定必然为 false —— 此时不能据此认定「不是阅读页」。
+   *  返回 true 表示「待定」，需等 DOM 就绪后重判。 */
+  const domReady = () => document.readyState !== 'loading';
+
+  /** 启发式判断当前页是否是长文/小说阅读页（需 DOM 已就绪） */
   function looksLikeReaderPage() {
+    if (!domReady()) return false;               // DOM 未就绪，判定不可靠
     try {
       if (document.querySelector(CONTENT_SEL)) return true;
       if (document.querySelector('a[rel="next"],link[rel="next"]')) return true;
@@ -160,6 +166,15 @@
       // 标题里出现章节/页码等典型阅读页特征
       return /(第[零一二三四五六七八九十百千\d]+[章节回卷])|(上一页|下一页|目录)|(\d+\s*\/\s*\d+)\s*[-–|]?\s*(完|下一)/.test(t);
     } catch (e) { return false; }
+  }
+
+  /** 是否应应用配色。DOM 未就绪且依赖启发式时，返回 null 表示「待定」。 */
+  function targetDecision() {
+    if (cfg.cgAllHosts) return true;
+    const list = Array.isArray(cfg.cgHosts) ? cfg.cgHosts.filter(Boolean) : [];
+    if (list.length) return list.some(p => hostMatch(p, location.hostname));
+    if (!domReady()) return null;                // 待 DOM 就绪后重判
+    return looksLikeReaderPage();
   }
 
   /* ---------------------------- L0：脏配置清洗 ---------------------------- */
@@ -301,17 +316,34 @@
   }
 
   /* -------------------------------- 启动 -------------------------------- */
-  function boot() {
-    if (!cfg.cgEnabled || !isTargetHost()) return;
+  /** DOM 就绪后的真正启动动作 */
+  function startIfTarget() {
+    const dec = targetDecision();
+    if (dec !== true) { lastDecision = { mode: 'skip', reason: dec === null ? 'dom-not-ready' : 'not-target' }; return false; }
     if (cfg.cgResetDirty) resetDirtyPalette();
 
     applyL1();                                   // L1 兜底
     const m = measure();
     if (m) applyL2(m);                           // L2 定稿
-    else document.addEventListener('DOMContentLoaded', () => applyL2(measure()), { once: true });
-
     watch();
     dbg('已启用 @', location.hostname, '预设=', cfg.cgPreset);
+    return true;
+  }
+
+  function boot() {
+    if (!cfg.cgEnabled) return;
+
+    // 依赖 DOM 的启发式判定在 document_start 阶段不可用，
+    // 必须等 DOM 就绪后再判，否则会漏应用（表现为「刷新后全黑」）。
+    if (!domReady()) {
+      lastDecision = { mode: 'pending' };
+      document.addEventListener('DOMContentLoaded', () => { startIfTarget(); },
+        { once: true });
+      // 某些站点 DOMContentLoaded 早于脚本注册，这里再兜一层
+      if (document.readyState !== 'loading') startIfTarget();
+      return;
+    }
+    startIfTarget();
   }
 
   /* ------------------------------ 消息接口 ------------------------------ */
@@ -357,17 +389,24 @@
   }
   async function refresh() {
     const v = await sGet(DEFAULTS);
-    const prevOn = cfg.cgEnabled, prevPreset = cfg.cgPreset;
+    const prevOn = cfg.cgEnabled;
     cfg = Object.assign({}, DEFAULTS, v || {});
 
-    if (!isTargetHost()) { dropStyle(); return; }
+    // DOM 未就绪时不要贸然 dropStyle —— 判定不可靠，等就绪后由 startIfTarget 处理
+    const dec = targetDecision();
+    if (dec === false) { dropStyle(); lastDecision = { mode: 'skip', reason: 'not-target' }; return; }
     if (!cfg.cgEnabled) {
       if (prevOn) { dropStyle(); try { observer && observer.disconnect(); } catch (e) { /* noop */ } }
+      lastDecision = { mode: 'off' };
+      return;
+    }
+    if (dec === null) {          // DOM 未就绪：挂一次就绪回调
+      if (document.readyState !== 'loading') startIfTarget();
+      else document.addEventListener('DOMContentLoaded', () => startIfTarget(), { once: true });
       return;
     }
     if (!prevOn) { boot(); return; }                    // 从关到开：重新起
-    if (prevPreset !== cfg.cgPreset) applyL2(measure()); // 换预设：立即生效
-    else applyL2(measure());
+    applyL2(measure());                                  // 其余情况：立即重算
   }
 
   sGet(DEFAULTS).then((v) => {
