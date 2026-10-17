@@ -36,6 +36,61 @@ with open(os.path.join(HERE, 'manifest.json'), encoding='utf-8') as f:
     manifest = json.load(f)
 VERSION = manifest.get('version', '1.0.0')
 
+# ----------------- 版本号复用检查（2026-10-17 加，务必保留）-----------------
+# 历史事故：修复 innerHTML 后又用同一个版本号 1.0.3 反复打包多次，
+#   而 AMO 上上传的是修复前的那版。结果同一个 "1.0.3" 名下存在两份
+#   内容完全不同的包 —— 人无法判断哪个是对的，也无法重新启用已上传的版本。
+# 现在规则：**版本号一旦用过就不可复用**。若本次源码内容与 dist 下
+#   同版本号的既有包不同（仅 manifest 版本号以外有差异），直接报错要求递增版本号。
+import hashlib
+import zipfile as _zipfile
+
+
+def _src_digest():
+    """当前源码内容指纹（忽略 manifest 的 version 字段与注释行）。"""
+    h = _hashlib.sha256()
+    for name in ['content.js', 'contrast.js', 'guard.css', 'background.js',
+                 'popup.html', 'popup.js', 'options.html', 'options.js']:
+        p = os.path.join(HERE, name)
+        if os.path.exists(p):
+            with open(p, 'rb') as fh:
+                h.update(fh.read())
+    return h.hexdigest()
+
+
+import hashlib as _hashlib
+_cur_digest = _src_digest()
+_dist_dir = os.path.join(HERE, 'dist')
+_same_ver_file = None
+if os.path.isdir(_dist_dir):
+    for _f in os.listdir(_dist_dir):
+        if _f == 'keypaginator-%s.xpi' % VERSION:
+            _same_ver_file = os.path.join(_dist_dir, _f)
+            break
+
+if _same_ver_file:
+    try:
+        with _zipfile.ZipFile(_same_ver_file) as _z:
+            _hh = _hashlib.sha256()
+            for _n in ['content.js', 'contrast.js', 'guard.css', 'background.js',
+                       'popup.html', 'popup.js', 'options.html', 'options.js']:
+                if _n in _z.namelist():
+                    _hh.update(_z.read(_n))
+            _old_digest = _hh.hexdigest()
+        if _old_digest != _cur_digest:
+            print('!! 自检未通过：')
+            print('   - 版本号 %s 已被用过，且内容与既有包不同（同名不同内容）。' % VERSION)
+            print('     既有包: %s' % os.path.basename(_same_ver_file))
+            print('     AMO 上已存在该版本时，重新启用会拿到**旧代码**，无法修复线上问题。')
+            print('     请把 manifest.json 的 version 递增（如 %s.1 → 下个可用版本）后重试。'
+                  % VERSION)
+            raise SystemExit(1)
+        print('提示：版本号 %s 与既有包内容一致（未改动，可重新打包）。' % VERSION)
+    except SystemExit:
+        raise
+    except Exception as e:
+        print('  [提醒] 版本复用检查跳过：%s' % e)
+
 # ----------------- 提交前自检（对应 addons-linter 历史报错）-----------------
 # 规则来源：MDN browser_specific_settings
 #   - MV3 必须有 gecko.id
