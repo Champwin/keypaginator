@@ -17,19 +17,31 @@
     }
   },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["contrast.js"],
-      "css": ["guard.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "contrast.js"
+      ],
+      "css": [
+        "guard.css"
+      ],
       "run_at": "document_start",
       "all_frames": false
     }
@@ -48,7 +60,9 @@
       "id": "keypaginator@example.com",
       "strict_min_version": "142.0",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": [
+          "none"
+        ]
       }
     }
   }

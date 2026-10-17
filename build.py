@@ -62,6 +62,35 @@ eid = gecko.get('id')
 if not eid:
     problems.append('缺少 browser_specific_settings.gecko.id（MV3 必需）')
 
+# 1b) ID 是否仍是"通用占位符"或"新建 UUID"——这两种情况在 AMO 上传时会被拒
+#     AMO 报错原文：您的 manifest.json ({...}) 中的附加组件 ID 与您的附加组件
+#     在 AMO (xxx) 上的 ID 不匹配。
+#     原因：同一个 add-on 条目下，manifest 的 ID 必须与建条目时用的 ID 完全一致。
+#     换 ID 只能新建条目，不能在旧条目里传。
+#
+#     ★ AMO_ID 可用环境变量覆盖（发布公开仓库的副本请用通用值，避免泄露自己的 ID）：
+#         Windows CMD   :  set KEYPAGINATOR_AMO_ID=your-id@your-domain  && python build.py
+#         PowerShell    :  $env:KEYPAGINATOR_AMO_ID='your-id@your-domain'; python build.py
+#         Bash          :  KEYPAGINATOR_AMO_ID=your-id@your-domain python build.py
+#       留空则跳过该检查（适合发布给他人使用）。
+AMO_ID = os.environ.get('KEYPAGINATOR_AMO_ID', '').strip()
+if AMO_ID and eid == 'keypaginator@example.com':
+    problems.append(
+        '当前 gecko.id 是通用占位符 keypaginator@example.com。\n'
+        '       上传到 AMO 会被拒（ID 与你已有的 add-on 条目 %s 不匹配）。\n'
+        '       请把 id 改成 %s，或在 AMO 首页用「提交新附加组件」另建条目。'
+        % (AMO_ID, AMO_ID))
+if AMO_ID and eid and eid.startswith('{'):
+    problems.append(
+        '当前 gecko.id 是新生成的 UUID（%s）。\n'
+        '       AMO 里已存在的条目用的是 %s，ID 不一致会被直接拒收。\n'
+        '       二选一：① 改回 %s 在旧条目下点「上传新版本」；\n'
+        '               ② 回 AMO 首页用「提交新附加组件」以该 UUID 新建条目。'
+        % (eid, AMO_ID, AMO_ID))
+if eid and eid.startswith('{') and not AMO_ID:
+    print('提示：检测到新 UUID 作为扩展 ID。'
+          '若你在 AMO 已有条目，请设置环境变量 KEYPAGINATOR_AMO_ID 为该条目的 ID 以启用校验。')
+
 # 2) data_collection_permissions 必须是对象，且 required 为数组
 dcp = gecko.get('data_collection_permissions')
 if dcp is None:
@@ -124,12 +153,51 @@ for r in sorted(set(refs)):
     if not os.path.exists(os.path.join(HERE, r)):
         problems.append('manifest 引用了不存在的文件: %s（该功能会静默失效）' % r)
 
+# 6) AMO linter 高危模式扫描
+#    addons-linter 会在上传时拒绝或警告以下写法，本项目要求一律不用：
+#      - Unsafe assignment to innerHTML / outerHTML
+#      - insertAdjacentHTML
+#      - document.write
+#      - eval / new Function
+#      - setTimeout/setInterval 传字符串
+#    正确写法：createElement + textContent / .value / appendChild。
+#    （历史教训：options.js 曾残留一处 innerHTML 拼接，2026-10-17 被 AMO 拦下。）
+import re
+
+LINTER_PATTERNS = [
+    (r'\.innerHTML\s*=', 'Unsafe assignment to innerHTML', '改用 createElement + textContent'),
+    (r'\.outerHTML\s*=', 'Unsafe assignment to outerHTML', '改用 createElement + textContent'),
+    (r'\.insertAdjacentHTML\s*\(', 'insertAdjacentHTML', '改用 appendChild / createElement'),
+    (r'document\.write\s*\(', 'document.write', '改用 DOM API'),
+    (r'\beval\s*\(', 'eval', '改用显式逻辑'),
+    (r'new\s+Function\s*\(', 'new Function', '改用显式逻辑'),
+    (r'\bsetTimeout\s*\(\s*[\'"]', 'setTimeout 传字符串', '改用函数体'),
+    (r'\bsetInterval\s*\(\s*[\'"]', 'setInterval 传字符串', '改用函数体'),
+]
+
+for src in INCLUDE:
+    if not src.endswith(('.js', '.html')):
+        continue
+    p = os.path.join(HERE, src)
+    try:
+        with open(p, encoding='utf-8') as fh:
+            lines = fh.readlines()
+    except (OSError, UnicodeDecodeError):
+        continue
+    for i, line in enumerate(lines, 1):
+        code = re.sub(r'//.*$', '', line)
+        code = re.sub(r'/\*.*?\*/', '', code)
+        for pat, label, fix in LINTER_PATTERNS:
+            if re.search(pat, code):
+                # 注释里提到这些词不算问题（如注释写着"不使用 innerHTML"）
+                problems.append('%s:%d 使用了 %s —— %s' % (src, i, label, fix))
+
 if problems:
     print('!! 自检未通过：')
     for p in problems:
         print('   -', p)
     raise SystemExit(1)
-print('自检通过：ID = %s | dcp = %s | min(桌面/Android) = %s/%s'
+print('自检通过：ID = %s | dcp = %s | min(桌面/Android) = %s/%s | linter 高危模式 0 处'
       % (eid, dcp, gecko.get('strict_min_version'), android.get('strict_min_version', gecko.get('strict_min_version'))))
 
 

@@ -395,9 +395,20 @@
       if (!r) { out.textContent = '该页面无法检测（内置页面或未注入脚本）。'; return; }
       if (r.target === false) { out.textContent = '该站点不在配色名单内，未做处理。'; return; }
       const bad = r.cr != null && r.cr < (Number($('cgThreshold').value) || 4.5);
-      out.innerHTML = '对比度 <b>' + r.cr + ' : 1</b>　' +
-        (bad ? '<span style="color:var(--danger)">低于阈值</span>' : '<span style="color:#16a34a">正常</span>') +
-        (r.decision && r.decision.mode === 'repaired' ? '　已自动纠正' : '');
+
+      // 用 DOM API 构建，不用 innerHTML（AMO linter 会报 Unsafe assignment）
+      out.textContent = '';
+      const strong = document.createElement('b');
+      strong.textContent = '对比度 ' + r.cr + ' : 1';
+      out.appendChild(strong);
+      out.appendChild(document.createTextNode('　'));
+      const badge = document.createElement('span');
+      badge.className = bad ? 'cg-probe-bad' : 'cg-probe-ok';
+      badge.textContent = bad ? '低于阈值' : '正常';
+      out.appendChild(badge);
+      if (r.decision && r.decision.mode === 'repaired') {
+        out.appendChild(document.createTextNode('　已自动纠正'));
+      }
     } catch (e) {
       out.textContent = '检测失败：' + e.message;
     }
