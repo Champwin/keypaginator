@@ -27,7 +27,7 @@ ROOT = os.path.dirname(HERE)
 INCLUDE = [
     'manifest.json', 'content.js', 'background.js',
     'popup.html', 'popup.js', 'options.html', 'options.js',
-    'contrast.js', 'guard.css',
+    'contrast.js', 'guard.css', 'guard-style.js',
     'icons/icon48.png', 'icons/icon96.png',
     'README.md',
 ]
