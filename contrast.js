@@ -129,6 +129,10 @@
   }
 
   /* ------------------------------ 站点判定 ------------------------------ */
+  /* ------------------------------ 站点判定 ------------------------------ */
+  // 正文容器选择器：先于站点判定定义，供启发式判定复用
+  const CONTENT_SEL = '#article-content,.reader-text,.reader-card,.chapter-content,#content,.txtnav';
+
   function hostMatch(pattern, hostname) {
     if (!pattern) return false;
     const p = String(pattern).toLowerCase().replace(/^\*\./, '').replace(/www\./, '');
@@ -137,12 +141,26 @@
   }
   /** 用户可在设置页填写「*」表示对所有站点生效 */
   const isTargetHost = () => {
+    // 显式对所有站点生效
     if (cfg.cgAllHosts) return true;
-    const list = Array.isArray(cfg.cgHosts) && cfg.cgHosts.length
-      ? cfg.cgHosts
-      : TARGET_HOSTS;
-    return list.some(p => hostMatch(p, location.hostname));
+    // 用户在设置页添加了名单：只对名单内站点生效（名单为空时按下方默认规则兜底）
+    const list = Array.isArray(cfg.cgHosts) ? cfg.cgHosts.filter(Boolean) : [];
+    if (list.length) return list.some(p => hostMatch(p, location.hostname));
+    // 未配置任何名单：采用「仅在疑似阅读页生效」的启发式——
+    // 页面里存在正文容器或 rel=next 时才应用，避免干扰普通网页。
+    return looksLikeReaderPage();
   };
+
+  /** 启发式判断当前页是否是长文/小说阅读页 */
+  function looksLikeReaderPage() {
+    try {
+      if (document.querySelector(CONTENT_SEL)) return true;
+      if (document.querySelector('a[rel="next"],link[rel="next"]')) return true;
+      const t = (document.title || '').trim();
+      // 标题里出现章节/页码等典型阅读页特征
+      return /(第[零一二三四五六七八九十百千\d]+[章节回卷])|(上一页|下一页|目录)|(\d+\s*\/\s*\d+)\s*[-–|]?\s*(完|下一)/.test(t);
+    } catch (e) { return false; }
+  }
 
   /* ---------------------------- L0：脏配置清洗 ---------------------------- */
   function resetDirtyPalette() {
@@ -156,7 +174,6 @@
   }
 
   /* --------------------------- 样式注入（L1/L2） --------------------------- */
-  const CONTENT_SEL = '#article-content,.reader-text,.reader-card,.chapter-content,#content,.txtnav';
 
   function ensureStyle() {
     if (styleEl && styleEl.isConnected) return;
