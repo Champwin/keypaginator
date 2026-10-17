@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "键盘翻页助手 KeyPaginator",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "按方向键或自定义按键，自动点击页面上的「下一页 / 下一章 / Next」等翻页链接；内置阅读配色与对比度守护。",
   "author": "Champwin",
   "homepage_url": "https://github.com/Champwin/keypaginator",
