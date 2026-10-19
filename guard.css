@@ -1,59 +1,21 @@
 /* =========================================================================
- * guard.css — 阅读配色的 L1 声明式兜底（无条件的"绝不黑屏"底线）
+ * guard.css — 阅读配色的「L1 声明式兜底」占位文件
  * -------------------------------------------------------------------------
- * 由浏览器在 document_start 注入，早于页面任何 JS 执行。
+ * ★ 2026-10-18 起本文件**不再**强加白色兜底。
  *
- * ★ 为什么必须无条件生效（历史教训，务必保留）
- *   本文件曾写成 `html.has-custom-text {...}` 这类带条件的规则，
- *   但 `has-custom-text` 是站点 Alpine 绑定到 html 上的 class，
- *   扩展自己从不添加 → 整份 guard.css 成了死代码，
- *   于是「设了深色背景但没设文字色」的黑底黑字现象重新出现。
- *   L1 是**底线保障**：先无条件把页面拉回可读，再由 contrast.js 按用户偏好接管。
+ * 旧版曾在此无条件铺白底（`html{background:#fff!important}` 等），
+ * 导致翻页（每次新导航）都先白底、再等 contrast.js 换成配置色 —— 白闪无法避免。
  *
- * 为什么需要 CSS 而非纯 JS：
- *   站点用 Alpine 的 :style 绑定把 CSS 变量写到 html 的行内 style 上，
- *   存在「变量已改、class 尚未更新」的短暂窗口，纯 JS 赶不上那个瞬间。
+ * 现在的分工：
+ *   1) background.js 用 browser.contentScripts.register 按域名，在 document_start
+ *      首屏绘制前注入**用户配置好的**背景/文字色（见 background.js 的 buildThemeCss）。
+ *      这是消除白闪、且保护「黑底黑字」的主路径。
+ *   2) guard-style.js 作为回退桥接：仅当本站点之前已被应用过配色
+ *      （localStorage.__kp_theme__ 有缓存）时，才在 document_start 注入配置色；
+ *      绝不铺白、绝不对未配置站点强加配色。
+ *   3) contrast.js 在 DOM 就绪后做精算（对比度守护 / 嵌套文字着色），
+ *      并把最终色写回 __kp_theme__ 供桥接复用。
  *
- * 优先级：!important 用于压过 html 上的行内 style
- *   （行内 style 属作者级且无 !important，会被样式表的 !important 覆盖）。
+ * 因此本文件保留为空（仅注释），不向页面注入任何颜色规则。
+ * 若需要新的全局声明式兜底，请在此追加，但**不要**再写无条件白底。
  * ========================================================================= */
-
-html {
-  color-scheme: light !important;
-  --custom-bg: #ffffff !important;
-  --custom-text: #1a1a1a !important;
-  background-color: #ffffff !important;
-}
-
-body {
-  background-color: #ffffff !important;
-  color: #1a1a1a !important;
-}
-
-/* 正文容器及其常见后代：同样无条件拉回可读。
-   注意逗号连接的每一段都不需要额外前缀（这里目标是"压过站点"，
-   站点的选择器来自它自己的样式表，本表由浏览器在 document_start 注入，
-   后注入的同优先级规则会覆盖先注入的，因此 !important 才是关键）。 */
-#article-content,
-.reader-text,
-.reader-card,
-.chapter-content,
-#content,
-.txtnav {
-  color: #1a1a1a !important;
-}
-
-#article-content p,
-.reader-text p,
-.reader-card p,
-.chapter-content p,
-#content p,
-.txtnav p,
-#article-content li,
-.reader-text li,
-.reader-card li,
-.chapter-content li,
-#content li,
-.txtnav li {
-  color: #1a1a1a !important;
-}

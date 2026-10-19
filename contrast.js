@@ -200,6 +200,23 @@
   function dropStyle() {
     if (styleEl) { try { styleEl.remove(); } catch (e) { /* noop */ } }
     styleEl = null;
+    clearThemeCache();                            // 取消应用同时清掉本站点配色缓存
+  }
+
+  /** 把最终生效的配色写入 localStorage 桥接（供 guard-style.js 下次 document_start 即时复用，消除白闪）。
+   *  键按源站隔离，只在用户启用配色后写入；作用范围信息一并发出，便于 guard-style 判定。 */
+  function cacheTheme(bg, fg) {
+    try {
+      localStorage.setItem('__kp_theme__', JSON.stringify({
+        bg: bg, fg: fg, host: location.hostname,
+        allHosts: !!cfg.cgAllHosts,
+        hosts: Array.isArray(cfg.cgHosts) ? cfg.cgHosts : [],
+        ts: Date.now()
+      }));
+    } catch (e) { /* 存储不可用则跳过 */ }
+  }
+  function clearThemeCache() {
+    try { localStorage.removeItem('__kp_theme__'); } catch (e) { /* noop */ }
   }
 
   /** 生成一套配色规则；用 html:root:root 提高特异性压过行内 style */
@@ -244,6 +261,7 @@
     ensureStyle();
     styleEl.textContent = buildCss(t.bg, t.fg).css;
     styleEl.dataset.active = '1';
+    cacheTheme(t.bg, t.fg);
   }
 
   function findContentRoot() {
@@ -286,6 +304,7 @@
     if (!needFix) {
       styleEl.textContent = buildCss(t.bg, t.fg).css;
       styleEl.dataset.active = '1';
+      cacheTheme(t.bg, t.fg);
       lastDecision = {
         mode: 'preset', preset: t.name, bg: t.bg, fg: t.fg, cr: +wantCr.toFixed(2)
       };
@@ -301,6 +320,7 @@
 
     styleEl.textContent = buildCss(bg, fg).css;
     styleEl.dataset.active = '2';
+    cacheTheme(bg, fg);
     repairCount++;
     lastDecision = {
       mode: 'repaired', preset: t.name,
